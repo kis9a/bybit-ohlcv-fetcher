@@ -8,6 +8,7 @@ PERIOD="6months"
 OUTPUT=""
 LIMIT=1000
 DELAY=2
+MARKET_TYPE="linear"
 
 # ヘルプ表示
 show_help() {
@@ -18,6 +19,7 @@ Required:
   -s, --symbol SYMBOL        Trading pair (e.g., BTC/USDT)
 
 Options:
+  -m, --market MARKET        Market type (spot, linear, inverse, default: linear)
   -t, --timeframe TIMEFRAME  Timeframe (default: 1h)
                             Supported: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h, 1d, 1w
   -p, --period PERIOD        Period (default: 6months)
@@ -29,17 +31,17 @@ Options:
   -h, --help                 Show this help
 
 Examples:
-  # Default (BTC/USDT 1h 6months)
-  $0 -s "BTC/USDT"
+  # Spot market: BTC/USDT 1h 6months
+  $0 -s "BTC/USDT" -m spot
 
-  # ETH/USDT 15m 3months
-  $0 -s "ETH/USDT" -t 15m -p 3months
+  # Linear perpetual: BTC/USDT:USDT 15m 3months (default market type)
+  $0 -s "BTC/USDT:USDT" -t 15m -p 3months
 
-  # BTC/USDT 5m 30days
-  $0 -s "BTC/USDT" -t 5m -p 30days
+  # Inverse perpetual: BTC/USD:BTC 5m 30days
+  $0 -s "BTC/USD:BTC" -m inverse -t 5m -p 30days
 
-  # BTC/USDT 1d 1year with custom output
-  $0 -s "BTC/USDT" -t 1d -p 1year -o btc_daily.csv
+  # ETH linear with 1d 1year and custom output
+  $0 -s "ETH/USDT:USDT" -m linear -t 1d -p 1year -o eth_daily.csv
 EOF
 }
 
@@ -85,6 +87,7 @@ period_to_days() {
 while [[ $# -gt 0 ]]; do
   case $1 in
     -s|--symbol) SYMBOL="$2"; shift 2 ;;
+    -m|--market) MARKET_TYPE="$2"; shift 2 ;;
     -t|--timeframe) TIMEFRAME="$2"; shift 2 ;;
     -p|--period) PERIOD="$2"; shift 2 ;;
     -o|--output) OUTPUT="$2"; shift 2 ;;
@@ -128,6 +131,7 @@ fi
 cat << EOF
 =================================================
 Symbol: $SYMBOL
+Market type: $MARKET_TYPE
 Timeframe: $TIMEFRAME
 Period: $PERIOD ($PERIOD_DAYS days)
 Start date: $START_DATE
@@ -161,9 +165,9 @@ for ((i=0; i<NUM_BATCHES; i++)); do
 
   # データ取得
   if [ $i -eq 0 ]; then
-    ./ohlcv -symbol "$SYMBOL" -timeframe "$TIMEFRAME" -since "$FETCH_DATE" -limit "$LIMIT" >> "$OUTPUT"
+    ./ohlcv -symbol "$SYMBOL" -market "$MARKET_TYPE" -timeframe "$TIMEFRAME" -since "$FETCH_DATE" -limit "$LIMIT" >> "$OUTPUT"
   else
-    ./ohlcv -symbol "$SYMBOL" -timeframe "$TIMEFRAME" -since "$FETCH_DATE" -limit "$LIMIT" | tail -n +2 >> "$OUTPUT"
+    ./ohlcv -symbol "$SYMBOL" -market "$MARKET_TYPE" -timeframe "$TIMEFRAME" -since "$FETCH_DATE" -limit "$LIMIT" | tail -n +2 >> "$OUTPUT"
   fi
 
   # レート制限対策

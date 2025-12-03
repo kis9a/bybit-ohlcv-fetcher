@@ -21,12 +21,38 @@ type Candle struct {
 	Volume float64
 }
 
+// validateMarketType validates the market type parameter
+func validateMarketType(marketType string) error {
+	validTypes := map[string]bool{
+		"spot":    true,
+		"linear":  true,
+		"inverse": true,
+	}
+	if !validTypes[marketType] {
+		return fmt.Errorf("invalid market type '%s'. Must be one of: spot, linear, inverse", marketType)
+	}
+	return nil
+}
+
+// marketTypeToDefaultType converts market type to CCXT's defaultType
+func marketTypeToDefaultType(marketType string) string {
+	switch marketType {
+	case "spot":
+		return "spot"
+	case "linear", "inverse":
+		return "swap"
+	default:
+		return "swap" // fallback to swap (linear)
+	}
+}
+
 func main() {
 	var (
-		symbol    = flag.String("symbol", "", "Trading pair symbol (e.g., BTC/USDT)")
-		timeframe = flag.String("timeframe", "1m", "Timeframe (e.g., 1m, 5m, 1h)")
-		sinceStr  = flag.String("since", "", "Start time in RFC3339 format (default: 1 hour ago)")
-		limit     = flag.Int("limit", 100, "Maximum number of candles to fetch")
+		symbol     = flag.String("symbol", "", "Trading pair symbol (e.g., BTC/USDT)")
+		timeframe  = flag.String("timeframe", "1m", "Timeframe (e.g., 1m, 5m, 1h)")
+		sinceStr   = flag.String("since", "", "Start time in RFC3339 format (default: 1 hour ago)")
+		limit      = flag.Int("limit", 100, "Maximum number of candles to fetch")
+		marketType = flag.String("market", "linear", "Market type: spot, linear, or inverse")
 	)
 	flag.Parse()
 
@@ -36,6 +62,11 @@ func main() {
 	}
 	if *limit <= 0 {
 		log.Fatalf("Error: -limit must be greater than 0")
+	}
+
+	// Validate market type
+	if err := validateMarketType(*marketType); err != nil {
+		log.Fatalf("Error: %v", err)
 	}
 
 	// Parse since time
@@ -51,7 +82,7 @@ func main() {
 	}
 
 	// Fetch and output OHLCV data
-	candles, err := fetchOHLCV(*symbol, *timeframe, since, *limit)
+	candles, err := fetchOHLCV(*symbol, *timeframe, since, *limit, *marketType)
 	if err != nil {
 		log.Fatalf("Error: failed to fetch OHLCV data: %v", err)
 	}
@@ -61,15 +92,21 @@ func main() {
 	}
 }
 
-func fetchOHLCV(symbol, timeframe string, since time.Time, limit int) ([]Candle, error) {
+func fetchOHLCV(symbol, timeframe string, since time.Time, limit int, marketType string) ([]Candle, error) {
 	// Initialize Bybit client
 	apiKey := os.Getenv("BYBIT_API_KEY")
 	apiSecret := os.Getenv("BYBIT_API_SECRET")
+
+	// Convert market type to CCXT's defaultType
+	defaultType := marketTypeToDefaultType(marketType)
 
 	exchange := ccxt.NewBybit(map[string]interface{}{
 		"apiKey":          apiKey,
 		"secret":          apiSecret,
 		"enableRateLimit": true,
+		"options": map[string]interface{}{
+			"defaultType": defaultType,
+		},
 	})
 
 	// Load markets

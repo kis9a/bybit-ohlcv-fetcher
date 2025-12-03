@@ -89,13 +89,22 @@ Options:
         Default: 1 hour ago
   -limit int
         Maximum number of candles (default: 100, max: 1000)
+  -market string
+        Market type (default: "linear")
+        Options: spot, linear, inverse
 ```
 
 #### Examples
 
 ```bash
-# Basic usage
+# Basic usage (Linear perpetual - default)
 ./ohlcv -symbol "BTC/USDT" -timeframe 1h -limit 100
+
+# Spot market
+./ohlcv -symbol "BTC/USDT" -market spot -timeframe 1h -limit 100
+
+# Inverse perpetual
+./ohlcv -symbol "BTC/USD" -market inverse -timeframe 1h -limit 100
 
 # Save to CSV file
 ./ohlcv -symbol "BTC/USDT" -timeframe 15m -limit 500 > data.csv
@@ -115,6 +124,8 @@ Required:
 Options:
   -t, --timeframe TIMEFRAME  Timeframe (default: 1h)
   -p, --period PERIOD        Period (default: 6months)
+  -m, --market MARKET        Market type (default: linear)
+                             Options: spot, linear, inverse
   -o, --output FILE          Output filename (auto-generated)
   -l, --limit LIMIT          Fetch limit per request (default: 1000)
   -d, --delay SECONDS        Delay between API calls (default: 2)
@@ -130,6 +141,97 @@ Options:
 | Swing Trading | `./scripts/fetch_ohlcv.sh -s "BTC/USDT" -t 1h -p 1year` | ~8,760 |
 | Deep Learning | `./scripts/fetch_ohlcv.sh -s "BTC/USDT" -t 15m -p 6months` | ~17,000 |
 | Long-term Backtest | `./scripts/fetch_ohlcv.sh -s "BTC/USDT" -t 1d -p 5years` | ~1,825 |
+
+#### Market Type Examples
+
+```bash
+# Spot market (actual cryptocurrency trading)
+./scripts/fetch_ohlcv.sh -s "BTC/USDT" -m spot -t 1h -p 6months
+
+# Linear perpetual (USDT-margined, default)
+./scripts/fetch_ohlcv.sh -s "BTC/USDT" -m linear -t 1h -p 6months
+
+# Inverse perpetual (BTC-margined)
+./scripts/fetch_ohlcv.sh -s "BTC/USD" -m inverse -t 1h -p 6months
+```
+
+---
+
+## Market Types
+
+Bybit offers three main market types, each with different characteristics:
+
+### Spot Market
+
+- **Description**: Physical cryptocurrency spot trading
+- **Settlement**: Actual cryptocurrencies (BTC, ETH, USDT, etc.)
+- **Leverage**: No leverage (except margin trading)
+- **Symbol Format**: `BTC/USDT`, `ETH/USDT`
+- **Use Case**: Direct ownership, simple price tracking
+
+**Characteristics**:
+- No expiration date
+- Simple profit/loss calculation
+- No funding rate
+- Actual cryptocurrency holdings
+
+### Linear Perpetual (USDT-margined)
+
+- **Description**: USDT-margined perpetual futures contracts
+- **Settlement**: USDT (Tether)
+- **Leverage**: Available (varies by trading pair)
+- **Symbol Format**: `BTC/USDT`, `ETH/USDT` (with `-market linear`)
+- **Use Case**: Leverage trading with stable margin currency
+
+**Characteristics**:
+- No expiration date (perpetual)
+- Margin and PnL calculated in USDT
+- Intuitive profit/loss management
+- Funding rate mechanism
+- Isolated from base asset volatility
+
+### Inverse Perpetual (BTC-margined)
+
+- **Description**: BTC-margined perpetual futures contracts
+- **Settlement**: BTC or other base cryptocurrencies
+- **Leverage**: Available
+- **Symbol Format**: `BTC/USD`, `ETH/USD` (with `-market inverse`)
+- **Use Case**: Earning cryptocurrency, hedging crypto holdings
+
+**Characteristics**:
+- No expiration date (perpetual)
+- Margin and settlement in base asset (e.g., BTC)
+- Exposed to collateral asset volatility
+- Complex PnL calculation (inverse price characteristics)
+- Favorable for traders wanting to accumulate crypto
+
+### Choosing the Right Market Type
+
+| Factor | Spot | Linear | Inverse |
+|--------|------|--------|---------|
+| **Simplicity** | Highest | Medium | Lowest |
+| **Leverage** | No | Yes | Yes |
+| **Margin Currency** | Quote | USDT | Base |
+| **PnL Calculation** | Simple | Simple | Complex |
+| **Funding Rate** | No | Yes | Yes |
+| **Best For** | Holding | USDT traders | Crypto accumulation |
+
+### Important Symbol Notation
+
+When using different market types, symbol notation matters:
+
+```bash
+# Spot: Use standard pair notation
+-symbol "BTC/USDT" -market spot
+
+# Linear: Use standard pair notation
+-symbol "BTC/USDT" -market linear
+
+# Inverse: Use USD-denominated notation
+-symbol "BTC/USD" -market inverse
+```
+
+**Note**: The market type affects available symbols and data characteristics. Always verify symbol availability for your chosen market type.
 
 ---
 
@@ -278,6 +380,7 @@ This project is licensed under the MIT License.
 
 | Date | Changes |
 |------|---------|
+| 2025-12-04 | Added market type support (spot, linear, inverse) |
 | 2025-12-04 | Organized project structure (scripts/, docs/) |
 | 2025-12-04 | Added generic data fetcher (fetch_ohlcv.sh) |
 | 2025-12-04 | Implemented Go program (main.go) |
