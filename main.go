@@ -109,10 +109,11 @@ func fetchOHLCV(symbol, timeframe string, since time.Time, limit int, marketType
 		},
 	})
 
-	// Load markets
-	if _, err := exchange.LoadMarkets(nil); err != nil {
-		return nil, fmt.Errorf("failed to load markets: %w", err)
-	}
+	// Load markets - skip for now to avoid race condition bug in ccxt v4.5.23
+	// The FetchOHLCV should work without pre-loading markets
+	// if _, err := exchange.LoadMarkets(nil); err != nil {
+	// 	return nil, fmt.Errorf("failed to load markets: %w", err)
+	// }
 
 	// Fetch OHLCV data
 	sinceMs := since.UnixMilli()
